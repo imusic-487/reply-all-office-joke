@@ -38,6 +38,8 @@ def check_gate(text: str) -> None:
         fail(f"entry is {size} characters, gate allows {MIN_CHARS}-{MAX_CHARS}")
     if not text.strip():
         fail("entry is only white space")
+    if text.startswith("\ufeff"):
+        fail("entry starts with a byte-order mark, which the judge would see as a stray character")
     if "\n" in text or "\r" in text:
         fail("entry must be one line, no line breaks")
 
@@ -52,16 +54,19 @@ def write_and_verify(raw: bytes) -> None:
     DEST.write_bytes(raw)
     copied = DEST.read_bytes()
     if copied != raw:
-        if len(copied) != len(raw):
+        first = None
+        for i, pair in enumerate(zip(copied, raw)):
+            if pair[0] != pair[1]:
+                first = i
+                break
+        if first is not None:
             fail(
-                f"copy is {len(copied)} bytes, source is {len(raw)} bytes"
+                f"copy at {DEST} differs from line.txt at byte {first}: "
+                f"wrote 0x{copied[first]:02x}, source is 0x{raw[first]:02x}"
             )
-        first = next(
-            i for i, pair in enumerate(zip(copied, raw)) if pair[0] != pair[1]
-        )
         fail(
-            f"copy differs from line.txt at byte {first}: "
-            f"wrote 0x{copied[first]:02x}, source is 0x{raw[first]:02x}"
+            f"copy at {DEST} is {len(copied)} bytes, "
+            f"source is {len(raw)} bytes"
         )
 
 
